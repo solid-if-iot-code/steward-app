@@ -1,0 +1,13 @@
+html
+  head
+    title="Update Senxor Inbox"
+  body
+  include navigation.pug
+  h1 Update Sensor Inbox Identifier
+  p To update your sensor inbox uri, fill out the form below and a folder will be created in your pod.
+  p To fill out the URI, it will be in the form of {your Web ID}/{string you enter below} and it can contain forward slashes.
+  p Ex: https://myweb.id/ and my string is 'private/sensorInbox' = https://myweb.id/private/sensorInbox
+    form(action="/create_config" method="post" id="sensorUri" enctype="multipart/form-data")
+        label(for="sensorInboxUri") New String:
+        input(name="sensorInboxUri" type="text" id="sensorInboxUri")
+        input(type="submit" value="Create Container")

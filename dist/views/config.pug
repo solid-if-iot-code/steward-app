@@ -1,0 +1,13 @@
+html
+  head
+    title="Create Sensor Inbox"
+  body
+  h1 Create a Sensor Inbox Identifier
+  p Hello! If you're seeing this, you have not registered a sensor inbox Uri yet.
+  p If you'd like to create one, fill out the form below and a folder will be created in your pod.
+  p To fill out the URI, it will be in the form of {your Web ID}/{string you enter below} and it can contain forward slashes.
+  p Ex: https://myweb.id/ and my string is 'private/sensorInbox' = https://myweb.id/private/sensorInbox
+    form(action="/create_config" method="post" id="sensorUri" enctype="multipart/form-data")
+        label(for="sensorInboxUri") New String:
+        input(name="sensorInboxUri" type="text" id="sensorInboxUri")
+        input(type="submit" value="Create Container")

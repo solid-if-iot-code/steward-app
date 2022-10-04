@@ -1,0 +1,12 @@
+html
+  head
+    title="Home"
+  body
+    //include navigation.pug
+    h1 Welcome to the Demo App.
+    form(action="/login" method="post" id="oidc" enctype="multipart/form-data")
+      label(for="oidcIssuer") OIDC Issuer:
+      input(name="oidcIssuer" type="text" id="oidcIssuer")
+      input(type="submit" value="Login to OIDC Provider")
+    //script(src="/js/home.js" async defer)
+    
