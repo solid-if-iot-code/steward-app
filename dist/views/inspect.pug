@@ -1,0 +1,19 @@
+html
+  head
+    title="Add Sensor Configuration"
+  body
+  include navigation.pug
+  h1="Add Sensor Form"
+  form(action="/add_sensor" method="post" id="add_sensor" enctype="multipart/form-data")
+    label(for="sensorName") Sensor Name:
+    input(name="sensorName" type="text" id="sensorName")
+    label(for="webIds") Add Web IDs (comma separated):
+    textarea(columns="12" rows="5" type="text" id="webIds" name="webIds")
+    label(name="sensorUri") Sensor URI:
+    input(name="sensorUri" type="text" id="sensorUri")
+    label(name="brokerUri") Broker URI: 
+    input(name="brokerUri" type="text" id="brokerUri")
+    div(name="topics" id="topics")
+    button(id="addTopics" onclick="addTopic();" type="button") Add A Topic
+    input(type="submit" value="Add Sensor")
+  script(src="/js/inspect.js" async defer)

@@ -2,7 +2,7 @@ import express, { Express, Request, Response } from "express";
 import {
     getSessionFromStorage,
     Session
-}  from '@inrupt/solid-client-authn-node'; 
+} from '@inrupt/solid-client-authn-node'; 
 import cookieSession from "cookie-session";
 import { 
     getSolidDataset,
@@ -32,6 +32,7 @@ import {
 } from '@inrupt/solid-client';
 import path from "path";
 import * as multer from "multer";
+import * as bodyParser from "body-parser";
 // import { QueryEngine } from "@comunica/query-sparql";
 import _ from "lodash";
 // const myEngine = new QueryEngine();
@@ -44,6 +45,7 @@ const app: Express = express();
 app.use('/js', express.static(path.join(__dirname, 'public/js')))
 app.use(express.json());
 app.use(express.urlencoded());
+//app.use(bodyParser.urlencoded());
 //this sets the views directory for the compiled app.js file in the dist folder after tpyescript has compiled
 app.set('views', path.join(__dirname, '/views'))
 app.set('view engine', 'pug');
@@ -88,7 +90,7 @@ app.get("/login", async (req: Request, res: Response) => {
     }
 });
   
-app.get("/redirect-from-solid-idp", async (req, res) => {
+app.get("/redirect-from-solid-idp", async (req: Request, res: Response) => {
     const session = await getSessionFromStorage((req.session as CookieSessionInterfaces.CookieSessionObject).sessionId);
 
     await (session as Session).handleIncomingRedirect(`http://localhost:${PORT}${req.url}`);
@@ -101,13 +103,23 @@ app.get("/redirect-from-solid-idp", async (req, res) => {
 app.get('/home', async (req: Request, res: Response) => {
     const session = await getSessionFromStorage((req.session as CookieSessionInterfaces.CookieSessionObject).sessionId);
     if (session) {
-
+        res.render('inspect.pug')
     } else {
         res.render('error.pug')
     }
 })
 
-app.get('/error', (req, res) => {
+app.post('/add_sensor', async (req: Request, res: Response) => { 
+    const session = await getSessionFromStorage((req.session as CookieSessionInterfaces.CookieSessionObject).sessionId)
+    if (session) {
+        console.log(req.body)
+        res.redirect('/home');
+    } else {
+        res.redirect('/error')
+    }
+})
+
+app.get('/error', (req: Request, res: Response) => {
     res.render('error.pug');
 });
 
