@@ -32,9 +32,9 @@ import {
 } from '@inrupt/solid-client';
 import path from "path";
 import * as multer from "multer";
-import { QueryEngine } from "@comunica/query-sparql";
+// import { QueryEngine } from "@comunica/query-sparql";
 import _ from "lodash";
-const myEngine = new QueryEngine();
+// const myEngine = new QueryEngine();
 const upload = multer.default();
 const PORT = process.env.PORT || 3000;
 const app: Express = express();
@@ -107,11 +107,9 @@ app.get('/home', async (req: Request, res: Response) => {
     }
 })
 
-
 app.get('/error', (req, res) => {
     res.render('error.pug');
 });
-
 
 app.get('/logout', async (req: Request, res: Response) => {
     if (typeof req.session === undefined || typeof req.session === null) {
