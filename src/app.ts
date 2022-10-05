@@ -1,12 +1,11 @@
 import express, { Express, Request, Response } from "express";
 import {
-    clearSessionFromStorageAll,
     getSessionFromStorage,
-    getSessionIdFromStorageAll,
     Session
 }  from '@inrupt/solid-client-authn-node'; 
 import cookieSession from "cookie-session";
-import { getSolidDataset,
+import { 
+    getSolidDataset,
     getPodUrlAll,
     createSolidDataset, 
     buildThing, 
@@ -102,7 +101,7 @@ app.get("/redirect-from-solid-idp", async (req, res) => {
 app.get('/home', async (req: Request, res: Response) => {
     const session = await getSessionFromStorage((req.session as CookieSessionInterfaces.CookieSessionObject).sessionId);
     if (session) {
-        
+
     } else {
         res.render('error.pug')
     }
