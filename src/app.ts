@@ -61,51 +61,6 @@ app.use(
     })
 );
 
-async function getSensorInboxResource(session: Session): Promise<string | null> {
-    const webId = session.info.webId!;
-    let dataset = await getSolidDataset(webId, { fetch: session.fetch });
-    const rdfThing = getThing(dataset, webId);
-    const extendedProfileUri = getUrl(rdfThing!, 'http://www.w3.org/2000/01/rdf-schema#seeAlso');
-    // dereference extended profile document w/ uri
-    let extendedProfileDataset = await getSolidDataset(extendedProfileUri!, { fetch: session.fetch });
-    // https://solid.github.io/webid-profile/#reading-extended-profile-documents
-    // https://solid.github.io/data-interoperability-panel/specification/#data-grant
-    // query the dataset for the user card 
-    const extWebID = getThing(extendedProfileDataset, webId);
-    const sensorInboxUri = getStringNoLocale(extWebID!, 'http://www.example.org/sensor#sensorInbox');
-    return sensorInboxUri;
-}
-
-async function createSensorInboxUri(session: Session, sensorInboxUri: string): Promise<string> {
-    const webId = session.info.webId!;
-    let dataset = await getSolidDataset(webId, { fetch: session.fetch });
-    const rdfThing = getThing(dataset, webId);
-    const extendedProfileUri = getUrl(rdfThing!, 'http://www.w3.org/2000/01/rdf-schema#seeAlso');
-    // dereference extended profile document w/ uri
-    let extendedProfileDataset = await getSolidDataset(extendedProfileUri!, { fetch: session.fetch });
-    // https://solid.github.io/webid-profile/#reading-extended-profile-documents
-    // https://solid.github.io/data-interoperability-panel/specification/#data-grant
-    // space prefix then creating storage, retrieve the extended profile storage uri then build the profile uri
-    const SPACE_PREFIX = "http://www.w3.org/ns/pim/space#";
-    const STORAGE_SUBJ = `${SPACE_PREFIX}storage`;
-    const storageUri = getUrl(rdfThing!, STORAGE_SUBJ);
-    // query the dataset for the user card 
-    const extWebID = getThing(extendedProfileDataset, webId);
-    //update the card with the public type index type (predicate) and location (object)
-    const newExtWID = setStringNoLocale(extWebID!, "http://www.example.org/sensor#sensorInbox", sensorInboxUri);
-    extendedProfileDataset = setThing(extendedProfileDataset, newExtWID)
-    // save the extended profile with the new public type index in the card
-    let newDataset = createSolidDataset();
-    try {
-        await saveSolidDatasetAt(extendedProfileUri!, extendedProfileDataset, { fetch: session.fetch });
-        await saveSolidDatasetAt(`${storageUri}/${sensorInboxUri}`, newDataset, { fetch: session.fetch })
-        return '/home'
-    } catch (err) {
-        console.error(err);
-        return '/error'
-    }
-}
-
 app.get('/', (req: Request, res: Response) => {
     res.render('index.pug')
 })
@@ -147,64 +102,17 @@ app.get("/redirect-from-solid-idp", async (req, res) => {
 app.get('/home', async (req: Request, res: Response) => {
     const session = await getSessionFromStorage((req.session as CookieSessionInterfaces.CookieSessionObject).sessionId);
     if (session) {
-        const sensorInboxResource = await getSensorInboxResource(session);
-        if (sensorInboxResource) {
-            try {
-                console.log(sensorInboxResource)
-                const webId = session.info.webId!;
-                let dataset = await getSolidDataset(webId, { fetch: session.fetch });
-                const rdfThing = getThing(dataset, webId);
-                // dereference extended profile document w/ uri
-                // https://solid.github.io/webid-profile/#reading-extended-profile-documents
-                // https://solid.github.io/data-interoperability-panel/specification/#data-grant
-                // space prefix then creating storage, retrieve the extended profile storage uri then build the profile uri
-                const SPACE_PREFIX = "http://www.w3.org/ns/pim/space#";
-                const STORAGE_SUBJ = `${SPACE_PREFIX}storage`;
-                const storageUri = getUrl(rdfThing!, STORAGE_SUBJ);
-                const data = await getSolidDataset(`${storageUri}${sensorInboxResource}`, {fetch: session.fetch});
-                console.log(data)
-                res.render('home.pug')
-            } catch (err) {
-                console.log(err);
-            }
-            
-        } else {
-            res.redirect('/error')
-        }
+        
     } else {
         res.render('error.pug')
     }
 })
 
-app.post('/create_config', upload.none(), async (req: Request, res: Response) => {
-    console.log(req.body);
-    const session = await getSessionFromStorage((req.session as CookieSessionInterfaces.CookieSessionObject).sessionId)
-    if (session?.info.isLoggedIn) {
-        const uri = await createSensorInboxUri(session, req.body.sessionInboxUri)
-        res.redirect(uri);
-    }
-})
 
 app.get('/error', (req, res) => {
     res.render('error.pug');
 });
 
-app.get('/config', async (req: Request, res: Response) => {
-    const session = await getSessionFromStorage((req.session as CookieSessionInterfaces.CookieSessionObject).sessionId)
-    if (session?.info.isLoggedIn) {
-        try {
-            const sensorInboxUri = await getSensorInboxResource(session);
-            if (!sensorInboxUri) {
-                res.render('config.pug')
-            } else {
-                res.render('update_cfg.pug')
-            }
-        } catch (error) {
-            console.log(error);
-            res.redirect('/error')
-        }
-    }
-});
 
 app.get('/logout', async (req: Request, res: Response) => {
     if (typeof req.session === undefined || typeof req.session === null) {
