@@ -122,7 +122,8 @@ app.post('/add_sensor', async (req: Request, res: Response) => {
     const session = await getSessionFromStorage((req.session as CookieSessionInterfaces.CookieSessionObject).sessionId)
     if (session) {
         console.log(req.body)
-        res.redirect('/home');
+        res.status(200).end();
+        //res.redirect('/home');
     } else {
         res.redirect('/error')
     }
