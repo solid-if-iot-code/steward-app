@@ -32,7 +32,7 @@ import {
 } from '@inrupt/solid-client';
 import path from "path";
 import * as multer from "multer";
-import * as bodyParser from "body-parser";
+import { randomBytes } from "crypto";
 // import { QueryEngine } from "@comunica/query-sparql";
 import _ from "lodash";
 // const myEngine = new QueryEngine();
@@ -118,10 +118,61 @@ app.get('/create_sensor', async (req: Request, res: Response) => {
     }
 })
 
+function genRandomToken() {
+    return randomBytes(64).toString('hex');
+}
+
+async function getSensorInboxResource(session: Session, webId: string): Promise<string | null> {
+    //const webId = session.info.webId!;
+    let dataset = await getSolidDataset(webId, { fetch: session.fetch });
+    const rdfThing = getThing(dataset, webId);
+    const extendedProfileUri = getUrl(rdfThing!, 'http://www.w3.org/2000/01/rdf-schema#seeAlso');
+    // dereference extended profile document w/ uri
+    let extendedProfileDataset = await getSolidDataset(extendedProfileUri!, { fetch: session.fetch });
+    // https://solid.github.io/webid-profile/#reading-extended-profile-documents
+    // https://solid.github.io/data-interoperability-panel/specification/#data-grant
+    // query the dataset for the user card 
+    const extWebID = getThing(extendedProfileDataset, webId);
+    const sensorInboxUri = getStringNoLocale(extWebID!, 'http://www.example.org/sensor#sensorInbox');
+    return sensorInboxUri;
+}
+
 app.post('/add_sensor', async (req: Request, res: Response) => { 
     const session = await getSessionFromStorage((req.session as CookieSessionInterfaces.CookieSessionObject).sessionId)
     if (session) {
         console.log(req.body)
+        const sensorName = req.body.sensorName;
+        const webIds: Array<string> = typeof req.body.webIds === 'string' ? [req.body.webIds] : req.body.webIds;
+        const sensorUri = req.body.sensorUri;
+        const brokerUri = req.body.brokerUri;
+        const topics = typeof req.body.topics === 'string' ? [req.body.topics] : req.body.topics;
+        const topicTypes = typeof req.body.topicType === 'string' ? [req.body.topicType] : req.body.topicType;
+        let sensorThing = buildThing(createThing({ name: sensorName}))
+            .addIri('https://www.example.org/sensor#sensorUri', sensorUri)
+            .addIri('https://www.example.org/sensor#brokerUri', brokerUri)
+            .build();
+        for (let i = 0; i < topics.length; i++) {
+            if (topicTypes[i] === 'publish') {
+                sensorThing = addStringNoLocale(sensorThing, 'https://www.example.org/sensor#publishTopic', topics[i]);
+            } else {
+                sensorThing = addStringNoLocale(sensorThing, 'https://www.example.org/sensor#subscribeTopic', topics[i]);
+            }
+        }
+        sensorThing = addStringNoLocale(sensorThing, 'https://www.example.com/key#secure', '');
+        let keyThings: any = {}
+        for (const webId of webIds) {
+            const key = genRandomToken();
+            let newThing = setStringNoLocale(sensorThing, 'https://www.example.com/key#secure', key);
+            keyThings[webId] = newThing;
+        }
+        for (const webId of webIds) {
+            try {
+                const sensorInboxUri = await getSensorInboxResource(session, webId);
+                console.log(sensorInboxUri);
+            } catch (err) {
+                console.log(err);
+            }
+        }
         res.status(200).end();
         //res.redirect('/home');
     } else {
