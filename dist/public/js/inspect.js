@@ -37,14 +37,10 @@ function sendForm() {
     const urlEncodedData = topicsFd.join('&').replace(/%20/g, '+');
     s += `&${urlEncodedData}`;
     XHR.open("POST", "/add_sensor");
-    XHR.addEventListener('load', (event) => {
-        //alert('Yeah! Data sent and response loaded.');
-        
-      });
-      // Define what happens in case of error
-      XHR.addEventListener('error', (event) => {
-        alert('Oops! Something went wrong.');
-      });
+    // Define what happens in case of error
+    XHR.addEventListener('error', (event) => {
+      alert('Oops! Something went wrong.');
+    });
     XHR.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
     XHR.send(s);
     XHR.onreadystatechange = () => {

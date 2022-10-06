@@ -103,6 +103,15 @@ app.get("/redirect-from-solid-idp", async (req: Request, res: Response) => {
 app.get('/home', async (req: Request, res: Response) => {
     const session = await getSessionFromStorage((req.session as CookieSessionInterfaces.CookieSessionObject).sessionId);
     if (session) {
+        res.render('home.pug')
+    } else {
+        res.render('error.pug')
+    }
+})
+
+app.get('/create_sensor', async (req: Request, res: Response) => { 
+    const session = await getSessionFromStorage((req.session as CookieSessionInterfaces.CookieSessionObject).sessionId);
+    if (session) {
         res.render('inspect.pug')
     } else {
         res.render('error.pug')
