@@ -37,7 +37,7 @@ import { randomBytes } from "crypto";
 import _ from "lodash";
 // const myEngine = new QueryEngine();
 const upload = multer.default();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 const app: Express = express();
 //this uses path join with __dirname
 //__dirname is the current directory of the executed file, which is necessary for the js file
@@ -140,36 +140,52 @@ async function getSensorInboxResource(session: Session, webId: string): Promise<
 app.post('/add_sensor', async (req: Request, res: Response) => { 
     const session = await getSessionFromStorage((req.session as CookieSessionInterfaces.CookieSessionObject).sessionId)
     if (session) {
-        console.log(req.body)
+        //console.log(req.body)
+        //console.log('here we are')
         const sensorName = req.body.sensorName;
+        //console.log(sensorName)
         const webIds: Array<string> = typeof req.body.webIds === 'string' ? [req.body.webIds] : req.body.webIds;
         const sensorUri = req.body.sensorUri;
+        //console.log(sensorUri)
         const brokerUri = req.body.brokerUri;
+        //console.log(brokerUri)
         const topics: Array<string> = typeof req.body.topic === 'string' ? [req.body.topic] : req.body.topic;
+        //console.log(topics)
         const topicTypes: Array<string> = typeof req.body.topicType === 'string' ? [req.body.topicType] : req.body.topicType;
-        let sensorThing = buildThing(createThing({ name: sensorName}))
+        //console.log(topicTypes)
+        let sensorThing = buildThing(createThing())
             .addIri('https://www.example.org/sensor#sensorUri', sensorUri)
             .addIri('https://www.example.org/sensor#brokerUri', brokerUri)
             .build();
+        let newThing;
         for (let i = 0; i < topics.length; i++) {
+            //console.log(topics[i])
             if (topicTypes[i] === 'publish') {
-                sensorThing = addStringNoLocale(sensorThing, 'https://www.example.org/sensor#publishTopic', topics[i]);
+                newThing = addStringNoLocale(sensorThing, 'https://www.example.org/sensor#publishTopic', topics[i]);
             } else {
                 sensorThing = addStringNoLocale(sensorThing, 'https://www.example.org/sensor#subscribeTopic', topics[i]);
             }
         }
-        sensorThing = addStringNoLocale(sensorThing, 'https://www.example.com/key#secure', '');
+        //sensorThing = addStringNoLocale(sensorThing, 'https://www.example.com/key#secure', '');
         let keyThings: any = {}
+        //console.log('made keythings')
         for (const webId of webIds) {
+            //console.log('looping')
             const key = genRandomToken();
+            //console.log(webId)
+            //console.log(key);
             let newThing = setStringNoLocale(sensorThing, 'https://www.example.com/key#secure', key);
-            console.log(newThing)
+            //console.log(newThing)
             keyThings[webId] = newThing;
         }
+        //console.log(keyThings)
         for (const webId of webIds) {
+            let newData = createSolidDataset();
+            newData = setThing(newData, keyThings[webId])
             try {
                 const sensorInboxUri = await getSensorInboxResource(session, webId);
-                await saveSolidDatasetAt(sensorInboxUri as string, keyThings[webId], { fetch: session.fetch })
+                console.log(sensorInboxUri);
+                await saveSolidDatasetInContainer(sensorInboxUri as string, newData, { fetch: session.fetch })
                 //console.log(sensorInboxUri);
                 console.log('success')
                 res.status(200).end();
