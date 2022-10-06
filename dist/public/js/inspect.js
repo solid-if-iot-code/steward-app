@@ -79,6 +79,9 @@ function sendForm() {
       if (XHR.status === 200) {
         alert('Success!')
         window.location = '/home';
+      } else {
+        alert('Error! Something went wrong')
+        window.location = '/error'
       }
     }
   }

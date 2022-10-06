@@ -145,8 +145,8 @@ app.post('/add_sensor', async (req: Request, res: Response) => {
         const webIds: Array<string> = typeof req.body.webIds === 'string' ? [req.body.webIds] : req.body.webIds;
         const sensorUri = req.body.sensorUri;
         const brokerUri = req.body.brokerUri;
-        const topics = typeof req.body.topics === 'string' ? [req.body.topics] : req.body.topics;
-        const topicTypes = typeof req.body.topicType === 'string' ? [req.body.topicType] : req.body.topicType;
+        const topics: Array<string> = typeof req.body.topic === 'string' ? [req.body.topic] : req.body.topic;
+        const topicTypes: Array<string> = typeof req.body.topicType === 'string' ? [req.body.topicType] : req.body.topicType;
         let sensorThing = buildThing(createThing({ name: sensorName}))
             .addIri('https://www.example.org/sensor#sensorUri', sensorUri)
             .addIri('https://www.example.org/sensor#brokerUri', brokerUri)
@@ -163,17 +163,21 @@ app.post('/add_sensor', async (req: Request, res: Response) => {
         for (const webId of webIds) {
             const key = genRandomToken();
             let newThing = setStringNoLocale(sensorThing, 'https://www.example.com/key#secure', key);
+            console.log(newThing)
             keyThings[webId] = newThing;
         }
         for (const webId of webIds) {
             try {
                 const sensorInboxUri = await getSensorInboxResource(session, webId);
-                console.log(sensorInboxUri);
+                await saveSolidDatasetAt(sensorInboxUri as string, keyThings[webId], { fetch: session.fetch })
+                //console.log(sensorInboxUri);
+                console.log('success')
+                res.status(200).end();
             } catch (err) {
                 console.log(err);
             }
         }
-        res.status(200).end();
+        res.status(401).end();
         //res.redirect('/home');
     } else {
         res.redirect('/error')
