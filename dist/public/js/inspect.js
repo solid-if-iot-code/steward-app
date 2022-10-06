@@ -38,16 +38,23 @@ function sendForm() {
     s += `&${urlEncodedData}`;
     XHR.open("POST", "/add_sensor");
     XHR.addEventListener('load', (event) => {
-        alert('Yeah! Data sent and response loaded.');
+        //alert('Yeah! Data sent and response loaded.');
+        
       });
-    
       // Define what happens in case of error
       XHR.addEventListener('error', (event) => {
         alert('Oops! Something went wrong.');
       });
     XHR.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
     XHR.send(s);
-    
+    XHR.onreadystatechange = () => {
+      if (XHR.readyState === 4) {
+        if (XHR.status === 200) {
+          alert('Success!')
+          window.location = '/home';
+        }
+      }
+    }
     //console.log(FD)
 }
 const form = document.querySelector('#add_sensor');
