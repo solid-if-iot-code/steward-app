@@ -161,7 +161,7 @@ app.post('/add_sensor', async (req: Request, res: Response) => {
         for (let i = 0; i < topics.length; i++) {
             //console.log(topics[i])
             if (topicTypes[i] === 'publish') {
-                newThing = addStringNoLocale(sensorThing, 'https://www.example.org/sensor#publishTopic', topics[i]);
+                sensorThing = addStringNoLocale(sensorThing, 'https://www.example.org/sensor#publishTopic', topics[i]);
             } else {
                 sensorThing = addStringNoLocale(sensorThing, 'https://www.example.org/sensor#subscribeTopic', topics[i]);
             }
