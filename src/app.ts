@@ -166,7 +166,7 @@ app.post('/add_sensor', async (req: Request, res: Response) => {
                 sensorThing = addStringNoLocale(sensorThing, 'https://www.example.org/sensor#subscribeTopic', topics[i]);
             }
         }
-        //sensorThing = addStringNoLocale(sensorThing, 'https://www.example.com/key#secure', '');
+        sensorThing = addStringNoLocale(sensorThing, 'https://www.example.com/sensor#subscribeStatus', 'unsubscribed');
         let keyThings: any = {}
         //console.log('made keythings')
         for (const webId of webIds) {
