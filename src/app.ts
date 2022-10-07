@@ -28,7 +28,8 @@ import {
     getThing,
     getUrl,
     setUrl,
-    setStringNoLocale
+    setStringNoLocale,
+    universalAccess
 } from '@inrupt/solid-client';
 import path from "path";
 import * as multer from "multer";
@@ -137,63 +138,134 @@ async function getSensorInboxResource(session: Session, webId: string): Promise<
     return sensorInboxUri;
 }
 
+function parseData(body: any) {
+    const sensorName = body.sensorName;
+    const webIds: Array<string> = body.webIds.split(',');
+    const sensorUri = body.sensorUri;
+    const brokerUri = body.brokerUri;
+    const topics: Array<string> = typeof body.topic === 'string' ? [body.topic] : body.topic;
+    const topicTypes: Array<string> = typeof body.topicType === 'string' ? [body.topicType] : body.topicType;
+    return { sensorName, webIds, sensorUri, brokerUri, topics, topicTypes}
+}
+
+function buildSensorInfoThing(sensorName: string, sensorUri: string, brokerUri: string, topicsUri: string) {
+    let sensorThing = buildThing(createThing({name: sensorName}))
+        .addStringNoLocale('https://www.example.org/sensor#sensorUri', sensorUri)
+        .addIri('https://www.example.org/sensor#brokerUri', brokerUri)
+        .addStringNoLocale('https://www.example.org/sensor#name', sensorName)
+        .addIri('https://www.example.org/sensor#topicsUri', topicsUri)
+        .build();
+    
+    return sensorThing;
+}
+
+function buildThingsDictWithSecretKey(sensorThing: any, webIds: Array<string>) {
+    let keyThings: any = {}
+    for (const webId of webIds) {
+        const key = genRandomToken();
+        let newThing = setStringNoLocale(sensorThing, 'https://www.example.com/key#secure', key);
+        keyThings[webId] = newThing;
+    }
+    return keyThings;
+}
+
+async function checkContainerExistsAndCreate(containerUri: string, session: Session) {
+    try {
+        await getSolidDataset(containerUri, {fetch: session.fetch})
+        return true;
+    } catch (err) {
+        console.log(err);
+        try {
+            await createContainerAt(containerUri, {fetch: session.fetch});
+            return true;
+        } catch (err: any) {
+            throw new Error(err.message);
+        }
+    }
+}
+
+async function checkResourceExistsAndCreate(resourceUri: string, session: Session) {
+    try {
+        await getSolidDataset(resourceUri, {fetch: session.fetch})
+        return true;
+    } catch (err) {
+        console.log(err);
+        let data = createSolidDataset();
+        try {
+            await saveSolidDatasetAt(resourceUri, data, {fetch: session.fetch});
+            return true;
+        } catch (err: any) {
+            throw new Error(err.message);
+        }
+    }
+}
+
+async function getStorageUri(session: Session) {
+    const webId = session.info.webId!;
+    const webIdData = await getSolidDataset(webId, { fetch: session.fetch })
+    const webIdDoc = getThing(webIdData, webId);
+    const storageUri = getUrl(webIdDoc!, 'http://www.w3.org/ns/pim/space#storage');
+    return storageUri;
+}
+
+async function setAccessForWebIdsAtUrl(session: Session, urls: Array<string>, webIds: Array<string>) {
+    try {
+        for (const webId of webIds) {
+            for (const url of urls) {
+                await universalAccess.setAgentAccess(url, webId, { read: true, write: false }, { fetch: session.fetch })
+            }
+        }
+    } catch (err: any) {
+        throw new Error(err.message)
+    }    
+}
+
+function buildTopicsThing(topics: Array<string>, topicTypes: Array<string>) {
+    let topicsThing = buildThing(createThing()).build();
+    for (let i = 0; i < topics.length; i++) {
+        if (topicTypes[i] === 'publish') {
+            topicsThing = addStringNoLocale(topicsThing, 'https://www.example.org/sensor#publishTopic', topics[i]);
+        } else {
+            topicsThing = addStringNoLocale(topicsThing, 'https://www.example.org/sensor#subscribeTopic', topics[i]);
+        }
+    }
+    return topicsThing;
+}
+
 app.post('/add_sensor', async (req: Request, res: Response) => { 
     const session = await getSessionFromStorage((req.session as CookieSessionInterfaces.CookieSessionObject).sessionId)
     if (session) {
-        //console.log(req.body)
-        //console.log('here we are')
-        const sensorName = req.body.sensorName;
-        //console.log(sensorName)
-        const webIds: Array<string> = typeof req.body.webIds === 'string' ? [req.body.webIds] : req.body.webIds;
-        const sensorUri = req.body.sensorUri;
-        //console.log(sensorUri)
-        const brokerUri = req.body.brokerUri;
-        //console.log(brokerUri)
-        const topics: Array<string> = typeof req.body.topic === 'string' ? [req.body.topic] : req.body.topic;
-        //console.log(topics)
-        const topicTypes: Array<string> = typeof req.body.topicType === 'string' ? [req.body.topicType] : req.body.topicType;
-        //console.log(topicTypes)
-        let sensorThing = buildThing(createThing())
-            .addIri('https://www.example.org/sensor#sensorUri', sensorUri)
-            .addIri('https://www.example.org/sensor#brokerUri', brokerUri)
-            .build();
-        let newThing;
-        for (let i = 0; i < topics.length; i++) {
-            //console.log(topics[i])
-            if (topicTypes[i] === 'publish') {
-                sensorThing = addStringNoLocale(sensorThing, 'https://www.example.org/sensor#publishTopic', topics[i]);
-            } else {
-                sensorThing = addStringNoLocale(sensorThing, 'https://www.example.org/sensor#subscribeTopic', topics[i]);
+        console.log(req.body)
+        try {
+            const storageUri = await getStorageUri(session)
+            const { sensorName, webIds, sensorUri, brokerUri, topics, topicTypes } = parseData(req.body);
+            const newSensorContainerUri = `${storageUri}public/sensors/${sensorName}/`
+            if (await checkContainerExistsAndCreate(newSensorContainerUri, session)) {
+                await setAccessForWebIdsAtUrl(session, [newSensorContainerUri], webIds)
+            } 
+            const newSensorInfoUri = `${newSensorContainerUri}info`;
+            const newSensorTopicsUri = `${newSensorContainerUri}topics`;
+            if (await checkResourceExistsAndCreate(newSensorInfoUri, session) && await checkResourceExistsAndCreate(newSensorTopicsUri, session)) { 
+                await setAccessForWebIdsAtUrl(session, [newSensorInfoUri, newSensorTopicsUri], webIds);
             }
-        }
-        sensorThing = addStringNoLocale(sensorThing, 'https://www.example.com/sensor#subscribeStatus', 'unsubscribed');
-        let keyThings: any = {}
-        //console.log('made keythings')
-        for (const webId of webIds) {
-            //console.log('looping')
-            const key = genRandomToken();
-            //console.log(webId)
-            //console.log(key);
-            let newThing = setStringNoLocale(sensorThing, 'https://www.example.com/key#secure', key);
-            //console.log(newThing)
-            keyThings[webId] = newThing;
-        }
-        //console.log(keyThings)
-        for (const webId of webIds) {
-            let newData = createSolidDataset();
-            newData = setThing(newData, keyThings[webId])
-            try {
+            let topicsThing = buildTopicsThing(topics, topicTypes)
+            let topicsDataset = await getSolidDataset(newSensorTopicsUri);
+            topicsDataset = setThing(topicsDataset, topicsThing);
+            await saveSolidDatasetAt(newSensorTopicsUri, topicsDataset, { fetch: session.fetch });
+
+            let sensorThing = buildSensorInfoThing(sensorName, sensorUri, brokerUri, newSensorTopicsUri);
+            let keyThings = buildThingsDictWithSecretKey(sensorThing, webIds);
+            for (const webId of webIds) {
+                let newData = createSolidDataset();
+                newData = setThing(newData, keyThings[webId])
                 const sensorInboxUri = await getSensorInboxResource(session, webId);
-                console.log(sensorInboxUri);
                 await saveSolidDatasetInContainer(sensorInboxUri as string, newData, { fetch: session.fetch })
-                //console.log(sensorInboxUri);
                 console.log('success')
-                res.status(200).end();
-            } catch (err) {
-                console.log(err);
-            }
+            } 
+            res.status(200).end();
+        } catch (err) {
+            res.redirect('/error');
         }
-        res.status(401).end();
         //res.redirect('/home');
     } else {
         res.redirect('/error')
