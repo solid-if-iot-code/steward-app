@@ -29,7 +29,8 @@ import {
     getUrl,
     setUrl,
     setStringNoLocale,
-    universalAccess
+    universalAccess,
+    addIri
 } from '@inrupt/solid-client';
 import path from "path";
 import * as multer from "multer";
@@ -221,6 +222,30 @@ function saveInWebIds(webIds: Array<string>, session: Session, keyThings: any): 
     })
 }
 
+async function saveAndUpdateDatasetWithThing(newUri: string, thing: any, session: Session): Promise<boolean | Error> {
+    let dataset = await getSolidDataset(newUri, { fetch: session.fetch });
+    dataset = setThing(dataset, thing);
+    return new Promise((res, rej) => {
+        saveSolidDatasetAt(newUri, dataset, { fetch: session.fetch })
+        .then(data => {
+            console.log(data);
+            res(true)
+        })
+        .catch(err => {
+            console.log(err)
+            rej(false)
+        })
+    })
+}
+
+function buildPermittedThing(webIds: Array<string>) {
+    let thing = buildThing(createThing()).build();
+    for (const webId of webIds) {
+        thing = addIri(thing, "https://www.example.org/permitted#webId", webId)
+    }
+    return thing;
+}
+
 app.post('/add_sensor', async (req: Request, res: Response) => { 
     const session = await getSessionFromStorage((req.session as CookieSessionInterfaces.CookieSessionObject).sessionId)
     if (session) {
@@ -238,7 +263,21 @@ app.post('/add_sensor', async (req: Request, res: Response) => {
             //console.log(newSensorInfoUri)
             const newSensorTopicsUri = `${newSensorContainerUri}topics`;
             //console.log(newSensorTopicsUri)
+            const newSensorPermittedUri = `${newSensorContainerUri}`
             //let data = createSolidDataset();
+            try {
+                await getSolidDataset(newSensorPermittedUri, { fetch: session.fetch })
+                //console.log(`${newSensorInfoUri} exists`)
+            } catch (err) {
+                console.log(err)
+                let newData = createSolidDataset();
+                try {
+                    await saveSolidDatasetAt(newSensorPermittedUri, newData, { fetch: session.fetch })
+                } catch (err) {
+                    console.log('fatal error 1')
+                    res.redirect('/error')
+                }
+            }
             try {
                 await getSolidDataset(newSensorInfoUri, { fetch: session.fetch })
                 //console.log(`${newSensorInfoUri} exists`)
@@ -266,18 +305,19 @@ app.post('/add_sensor', async (req: Request, res: Response) => {
                 }
             }
             await setAccessForWebIdsAtUrl(session, [newSensorInfoUri, newSensorTopicsUri], webIds);
-            //console.log('resources')
+            
             let topicsThing = buildTopicsThing(topics, topicTypes)
-            //console.log('topics thingy')
-            let topicsDataset = await getSolidDataset(newSensorTopicsUri, { fetch: session.fetch });
-            topicsDataset = setThing(topicsDataset, topicsThing);
-            await saveSolidDatasetAt(newSensorTopicsUri, topicsDataset, { fetch: session.fetch });
-            //console.log(`saved new data at: ${newSensorTopicsUri}`)
+            let success = await saveAndUpdateDatasetWithThing(newSensorTopicsUri, topicsThing, session)
+            if (!success) throw new Error(`failed to save ${newSensorTopicsUri}`)
+            
             let sensorThing = buildSensorInfoThing(sensorName, sensorUri, brokerUri, newSensorTopicsUri);
-            let infoDataset = await getSolidDataset(newSensorInfoUri, { fetch: session.fetch })
-            infoDataset = setThing(infoDataset, sensorThing);
-            await saveSolidDatasetAt(newSensorInfoUri, infoDataset, { fetch: session.fetch })
-            //console.log(`saved new data at ${newSensorInfoUri}`)
+            success = await saveAndUpdateDatasetWithThing(newSensorInfoUri, sensorThing, session)
+            if (!success) throw new Error(`failed to save ${newSensorInfoUri}`)
+            
+            let permittedThing = buildPermittedThing(webIds);
+            success = await saveAndUpdateDatasetWithThing(newSensorPermittedUri, permittedThing, session)
+            if (!success) throw new Error(`failed to save ${newSensorPermittedUri}`)
+
             let keyThings = buildThingsDictWithSecretKey(sensorThing, webIds);
             const resCode = await saveInWebIds(webIds, session, keyThings);
             console.log(resCode)
