@@ -263,7 +263,7 @@ app.post('/add_sensor', async (req: Request, res: Response) => {
             //console.log(newSensorInfoUri)
             const newSensorTopicsUri = `${newSensorContainerUri}topics`;
             //console.log(newSensorTopicsUri)
-            const newSensorPermittedUri = `${newSensorContainerUri}`
+            const newSensorPermittedUri = `${newSensorContainerUri}permitted`
             //let data = createSolidDataset();
             try {
                 await getSolidDataset(newSensorPermittedUri, { fetch: session.fetch })
