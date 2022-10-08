@@ -169,37 +169,6 @@ function buildThingsDictWithSecretKey(sensorThing: any, webIds: Array<string>) {
     return keyThings;
 }
 
-async function checkContainerExistsAndCreate(containerUri: string, session: Session) {
-    try {
-        await getSolidDataset(containerUri, {fetch: session.fetch})
-        return true;
-    } catch (err) {
-        console.log(err);
-        try {
-            await createContainerAt(containerUri, {fetch: session.fetch});
-            return true;
-        } catch (err: any) {
-            throw new Error(err.message);
-        }
-    }
-}
-
-async function checkResourceExistsAndCreate(resourceUri: string, session: Session) {
-    try {
-        await getSolidDataset(resourceUri, {fetch: session.fetch})
-        return true;
-    } catch (err) {
-        console.log(err);
-        let data = createSolidDataset();
-        try {
-            await saveSolidDatasetAt(resourceUri, data, {fetch: session.fetch});
-            return true;
-        } catch (err: any) {
-            throw new Error(err.message);
-        }
-    }
-}
-
 async function getStorageUri(session: Session) {
     const webId = session.info.webId!;
     const webIdData = await getSolidDataset(webId, { fetch: session.fetch })
@@ -209,6 +178,7 @@ async function getStorageUri(session: Session) {
 }
 
 async function setAccessForWebIdsAtUrl(session: Session, urls: Array<string>, webIds: Array<string>) {
+    console.log('setting access')
     try {
         for (const webId of webIds) {
             for (const url of urls) {
@@ -216,6 +186,7 @@ async function setAccessForWebIdsAtUrl(session: Session, urls: Array<string>, we
             }
         }
     } catch (err: any) {
+        console.log(err);
         throw new Error(err.message)
     }    
 }
@@ -232,37 +203,86 @@ function buildTopicsThing(topics: Array<string>, topicTypes: Array<string>) {
     return topicsThing;
 }
 
+function saveInWebIds(webIds: Array<string>, session: Session, keyThings: any): Promise<number> {
+    return new Promise((res, rej) => {
+        for (const webId of webIds) {
+            let newData = createSolidDataset();
+            newData = setThing(newData, keyThings[webId])
+            getSensorInboxResource(session, webId)
+              .then((sensorInboxUri) => {
+                saveSolidDatasetInContainer(sensorInboxUri as string, newData, { fetch: session.fetch })
+              })
+              .catch((err) => {
+                console.log(err);
+                rej(404)
+              })
+        } 
+        res(200)
+    })
+}
+
 app.post('/add_sensor', async (req: Request, res: Response) => { 
     const session = await getSessionFromStorage((req.session as CookieSessionInterfaces.CookieSessionObject).sessionId)
     if (session) {
         console.log(req.body)
         try {
             const storageUri = await getStorageUri(session)
+            console.log('storage')
             const { sensorName, webIds, sensorUri, brokerUri, topics, topicTypes } = parseData(req.body);
-            const newSensorContainerUri = `${storageUri}public/sensors/${sensorName}/`
-            if (await checkContainerExistsAndCreate(newSensorContainerUri, session)) {
-                await setAccessForWebIdsAtUrl(session, [newSensorContainerUri], webIds)
-            } 
+            console.log('parse')
+            const publicContainerUri = `${storageUri}public/`
+            const sensorsContainerUri = `${publicContainerUri}sensors/`
+            const newSensorContainerUri = `${sensorsContainerUri}${sensorName}/`
+            console.log('container')
             const newSensorInfoUri = `${newSensorContainerUri}info`;
+            console.log(newSensorInfoUri)
             const newSensorTopicsUri = `${newSensorContainerUri}topics`;
-            if (await checkResourceExistsAndCreate(newSensorInfoUri, session) && await checkResourceExistsAndCreate(newSensorTopicsUri, session)) { 
-                await setAccessForWebIdsAtUrl(session, [newSensorInfoUri, newSensorTopicsUri], webIds);
+            console.log(newSensorTopicsUri)
+            let data = createSolidDataset();
+            try {
+                await getSolidDataset(newSensorInfoUri, { fetch: session.fetch })
+                console.log(`${newSensorInfoUri} exists`)
+            } catch (err) {
+                console.log(err)
+                let newData = createSolidDataset();
+                try {
+                    await saveSolidDatasetAt(newSensorInfoUri, newData, { fetch: session.fetch })
+                } catch (err) {
+                    console.log('fatal error 1')
+                    res.redirect('/error')
+                }
             }
+            try {
+                await getSolidDataset(newSensorTopicsUri, { fetch: session.fetch })
+                console.log(`${newSensorTopicsUri} exists`)
+            } catch (err) {
+                console.log(err)
+                let newData = createSolidDataset();
+                try {
+                    await saveSolidDatasetAt(newSensorTopicsUri, newData, { fetch: session.fetch })
+                } catch (err) {
+                    console.log('fatal err')
+                    res.redirect('/error')
+                }
+            }
+            await setAccessForWebIdsAtUrl(session, [newSensorInfoUri, newSensorTopicsUri], webIds);
+            console.log('resources')
             let topicsThing = buildTopicsThing(topics, topicTypes)
-            let topicsDataset = await getSolidDataset(newSensorTopicsUri);
+            console.log('topics thingy')
+            let topicsDataset = await getSolidDataset(newSensorTopicsUri, { fetch: session.fetch });
             topicsDataset = setThing(topicsDataset, topicsThing);
             await saveSolidDatasetAt(newSensorTopicsUri, topicsDataset, { fetch: session.fetch });
-
+            console.log(`saved new data at: ${newSensorTopicsUri}`)
             let sensorThing = buildSensorInfoThing(sensorName, sensorUri, brokerUri, newSensorTopicsUri);
+            let infoDataset = await getSolidDataset(newSensorInfoUri, { fetch: session.fetch })
+            infoDataset = setThing(infoDataset, sensorThing);
+            await saveSolidDatasetAt(newSensorInfoUri, infoDataset, { fetch: session.fetch })
+            console.log(`saved new data at ${newSensorInfoUri}`)
             let keyThings = buildThingsDictWithSecretKey(sensorThing, webIds);
-            for (const webId of webIds) {
-                let newData = createSolidDataset();
-                newData = setThing(newData, keyThings[webId])
-                const sensorInboxUri = await getSensorInboxResource(session, webId);
-                await saveSolidDatasetInContainer(sensorInboxUri as string, newData, { fetch: session.fetch })
-                console.log('success')
-            } 
-            res.status(200).end();
+            const resCode = await saveInWebIds(webIds, session, keyThings);
+            console.log(resCode)
+            
+            res.status(resCode).end();
         } catch (err) {
             res.redirect('/error');
         }
