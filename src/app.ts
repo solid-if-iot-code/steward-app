@@ -224,24 +224,24 @@ function saveInWebIds(webIds: Array<string>, session: Session, keyThings: any): 
 app.post('/add_sensor', async (req: Request, res: Response) => { 
     const session = await getSessionFromStorage((req.session as CookieSessionInterfaces.CookieSessionObject).sessionId)
     if (session) {
-        console.log(req.body)
+        //console.log(req.body)
         try {
             const storageUri = await getStorageUri(session)
-            console.log('storage')
+            //console.log('storage')
             const { sensorName, webIds, sensorUri, brokerUri, topics, topicTypes } = parseData(req.body);
-            console.log('parse')
+            //console.log('parse')
             const publicContainerUri = `${storageUri}public/`
             const sensorsContainerUri = `${publicContainerUri}sensors/`
             const newSensorContainerUri = `${sensorsContainerUri}${sensorName}/`
-            console.log('container')
+            //console.log('container')
             const newSensorInfoUri = `${newSensorContainerUri}info`;
-            console.log(newSensorInfoUri)
+            //console.log(newSensorInfoUri)
             const newSensorTopicsUri = `${newSensorContainerUri}topics`;
-            console.log(newSensorTopicsUri)
-            let data = createSolidDataset();
+            //console.log(newSensorTopicsUri)
+            //let data = createSolidDataset();
             try {
                 await getSolidDataset(newSensorInfoUri, { fetch: session.fetch })
-                console.log(`${newSensorInfoUri} exists`)
+                //console.log(`${newSensorInfoUri} exists`)
             } catch (err) {
                 console.log(err)
                 let newData = createSolidDataset();
@@ -254,7 +254,7 @@ app.post('/add_sensor', async (req: Request, res: Response) => {
             }
             try {
                 await getSolidDataset(newSensorTopicsUri, { fetch: session.fetch })
-                console.log(`${newSensorTopicsUri} exists`)
+                //console.log(`${newSensorTopicsUri} exists`)
             } catch (err) {
                 console.log(err)
                 let newData = createSolidDataset();
@@ -266,22 +266,21 @@ app.post('/add_sensor', async (req: Request, res: Response) => {
                 }
             }
             await setAccessForWebIdsAtUrl(session, [newSensorInfoUri, newSensorTopicsUri], webIds);
-            console.log('resources')
+            //console.log('resources')
             let topicsThing = buildTopicsThing(topics, topicTypes)
-            console.log('topics thingy')
+            //console.log('topics thingy')
             let topicsDataset = await getSolidDataset(newSensorTopicsUri, { fetch: session.fetch });
             topicsDataset = setThing(topicsDataset, topicsThing);
             await saveSolidDatasetAt(newSensorTopicsUri, topicsDataset, { fetch: session.fetch });
-            console.log(`saved new data at: ${newSensorTopicsUri}`)
+            //console.log(`saved new data at: ${newSensorTopicsUri}`)
             let sensorThing = buildSensorInfoThing(sensorName, sensorUri, brokerUri, newSensorTopicsUri);
             let infoDataset = await getSolidDataset(newSensorInfoUri, { fetch: session.fetch })
             infoDataset = setThing(infoDataset, sensorThing);
             await saveSolidDatasetAt(newSensorInfoUri, infoDataset, { fetch: session.fetch })
-            console.log(`saved new data at ${newSensorInfoUri}`)
+            //console.log(`saved new data at ${newSensorInfoUri}`)
             let keyThings = buildThingsDictWithSecretKey(sensorThing, webIds);
             const resCode = await saveInWebIds(webIds, session, keyThings);
             console.log(resCode)
-            
             res.status(resCode).end();
         } catch (err) {
             res.redirect('/error');
