@@ -149,8 +149,9 @@ function parseData(body: any) {
     return { sensorName, webIds, sensorUri, brokerUri, topics, topicTypes}
 }
 
-function buildSensorInfoThing(sensorName: string, sensorUri: string, brokerUri: string, topicsUri: string) {
+function buildSensorInfoThing(webId: string, sensorName: string, sensorUri: string, brokerUri: string, topicsUri: string) {
     let sensorThing = buildThing(createThing({name: sensorName}))
+        .addIri("https://www.example.org/webId", webId)
         .addStringNoLocale('https://www.example.org/sensor#sensorUri', sensorUri)
         .addIri('https://www.example.org/sensor#brokerUri', brokerUri)
         .addStringNoLocale('https://www.example.org/sensor#name', sensorName)
@@ -310,7 +311,7 @@ app.post('/add_sensor', async (req: Request, res: Response) => {
             let success = await saveAndUpdateDatasetWithThing(newSensorTopicsUri, topicsThing, session)
             if (!success) throw new Error(`failed to save ${newSensorTopicsUri}`)
             
-            let sensorThing = buildSensorInfoThing(sensorName, sensorUri, brokerUri, newSensorTopicsUri);
+            let sensorThing = buildSensorInfoThing(session.info.webId!, sensorName, sensorUri, brokerUri, newSensorTopicsUri);
             success = await saveAndUpdateDatasetWithThing(newSensorInfoUri, sensorThing, session)
             if (!success) throw new Error(`failed to save ${newSensorInfoUri}`)
             
