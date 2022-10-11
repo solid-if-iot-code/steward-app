@@ -37,6 +37,7 @@ import * as multer from "multer";
 import { randomBytes } from "crypto";
 // import { QueryEngine } from "@comunica/query-sparql";
 import _ from "lodash";
+import { FOAF } from "@inrupt/vocab-common-rdf";
 // const myEngine = new QueryEngine();
 const upload = multer.default();
 const PORT = process.env.PORT || 3001;
@@ -128,13 +129,12 @@ async function getSensorInboxResource(session: Session, webId: string): Promise<
     //const webId = session.info.webId!;
     let dataset = await getSolidDataset(webId, { fetch: session.fetch });
     const rdfThing = getThing(dataset, webId);
-    const extendedProfileUri = getUrl(rdfThing!, 'http://www.w3.org/2000/01/rdf-schema#seeAlso');
-    // dereference extended profile document w/ uri
-    let extendedProfileDataset = await getSolidDataset(extendedProfileUri!, { fetch: session.fetch });
-    // https://solid.github.io/webid-profile/#reading-extended-profile-documents
+    const profileUri = getUrl(rdfThing!, FOAF.isPrimaryTopicOf);
+    // dereference profile document w/ uri
+    let profileDataset = await getSolidDataset(profileUri!, { fetch: session.fetch });
     // https://solid.github.io/data-interoperability-panel/specification/#data-grant
     // query the dataset for the user card 
-    const extWebID = getThing(extendedProfileDataset, webId);
+    const extWebID = getThing(profileDataset, webId);
     const sensorInboxUri = getStringNoLocale(extWebID!, 'http://www.example.org/sensor#sensorInbox');
     return sensorInboxUri;
 }
