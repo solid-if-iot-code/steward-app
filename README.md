@@ -1,5 +1,5 @@
 # steward-app
-This is the steward portion of the SOLID-if-IoT application architecture. 
+This is the Steward Client Application portion of the SOLID-if-IoT application architecture. 
 All the views used to serve endpoints are located at views and public/js.
 The pug templating engine was used.
 To install, simply clone and run 'npm i'. If there are issues, feel free to make a pull request.
